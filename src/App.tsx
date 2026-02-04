@@ -11,10 +11,7 @@ import {
   History,
   Plus,
   Save,
-  ThermometerSnowflake,
-  Mail,
-  CheckCircle,
-  AlertCircle
+  ThermometerSnowflake
 } from 'lucide-react';
 
 export default function GardenMonitor() {
@@ -23,10 +20,6 @@ export default function GardenMonitor() {
   const [showLog, setShowLog] = useState(false);
   const [activeZoneId, setActiveZoneId] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
-  
-  // Newsletter State
-  const [email, setEmail] = useState('');
-  const [subStatus, setSubStatus] = useState('idle'); // idle, loading, success, error
   
   // Weather State
   const [currentWeather, setCurrentWeather] = useState({
@@ -53,6 +46,7 @@ export default function GardenMonitor() {
 
   // --- API & DATA FETCHING ---
 
+  // Wicker Park, Chicago Coordinates
   const LAT = 41.90;
   const LON = -87.67;
 
@@ -72,7 +66,7 @@ export default function GardenMonitor() {
           code: currentJson.current.weather_code
         });
 
-        // 2. Fetch Last 7 Days History
+        // 2. Fetch Last 7 Days History (Rain & Temp)
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(endDate.getDate() - 7);
@@ -84,6 +78,7 @@ export default function GardenMonitor() {
         );
         const historyJson = await historyRes.json();
 
+        // Format history into a usable array
         const formattedHistory = historyJson.daily.time.map((date, i) => ({
           date: date,
           maxTemp: historyJson.daily.temperature_2m_max[i],
@@ -122,6 +117,7 @@ export default function GardenMonitor() {
     const dailyStats = [];
 
     historyData.forEach(day => {
+      // 1. Evaporation (Loss)
       let evaporation = 0;
       if (day.maxTemp > 80) evaporation = 15;
       else if (day.maxTemp > 60) evaporation = 10;
@@ -130,9 +126,11 @@ export default function GardenMonitor() {
 
       if (zoneType === 'container') evaporation *= 1.5;
 
+      // 2. Rain (Gain)
       let rainGain = day.rain * 50; 
       if (zoneType === 'container') rainGain *= 0.8;
 
+      // 3. User Watering (Gain)
       const watered = wateringEvents.some(e => e.zoneId === zoneId && e.date === day.date);
       
       if (watered) {
@@ -186,19 +184,6 @@ export default function GardenMonitor() {
     if(window.confirm("Remove this log entry?")) {
       setWateringEvents(prev => prev.filter(e => e.id !== eventId));
     }
-  };
-
-  const handleSubscribe = (e) => {
-    e.preventDefault();
-    if(!email || !email.includes('@')) return;
-    
-    setSubStatus('loading');
-    
-    // MOCK API CALL
-    setTimeout(() => {
-      setSubStatus('success');
-      setEmail('');
-    }, 1500);
   };
 
   // --- STYLES ---
@@ -378,7 +363,7 @@ export default function GardenMonitor() {
     .cancel-btn:hover { color: white; border-color: white; }
 
 
-    /* Modal / Popup */
+    /* Modal / Popup - FIXED FOR MOBILE */
     .modal-overlay {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.7);
@@ -399,7 +384,7 @@ export default function GardenMonitor() {
       border: 1px solid #334155;
       display: flex;
       flex-direction: column;
-      max-height: 90vh;
+      max-height: 90vh; /* Prevent it from being taller than screen */
       color: #f1f5f9;
     }
     
@@ -410,7 +395,7 @@ export default function GardenMonitor() {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-shrink: 0;
+      flex-shrink: 0; /* Header stays fixed */
     }
     .modal-title { font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 8px; margin: 0; }
     .close-btn { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 4px; }
@@ -457,53 +442,19 @@ export default function GardenMonitor() {
     }
     .delete-btn:hover { background: #7f1d1d; color: white; }
 
-    /* Newsletter Form */
-    .newsletter-section {
-      margin-top: 40px;
-      background: #1e293b;
-      border-radius: 16px;
-      padding: 24px;
-      border: 1px solid #334155;
-    }
-    .nl-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-    .nl-title { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; margin: 0; }
-    .nl-desc { font-size: 0.9rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.5; }
-    
-    .nl-form { display: flex; gap: 12px; }
-    .email-input {
-      flex: 1;
-      background: #0f172a;
-      border: 1px solid #475569;
-      padding: 12px;
-      border-radius: 8px;
-      color: white;
-      font-size: 1rem;
-    }
-    .sub-btn {
-      background: #3b82f6;
-      color: white;
-      border: none;
-      padding: 0 24px;
-      border-radius: 8px;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-    .sub-btn:disabled { background: #475569; cursor: not-allowed; }
-    
-    .sub-msg { margin-top: 12px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
-    .msg-success { color: #34d399; }
-    .msg-error { color: #f87171; }
+    .empty-state { text-align: center; padding: 20px; color: #64748b; font-size: 0.9rem; font-style: italic; }
 
     /* --- MOBILE FIXES --- */
     @media (max-width: 480px) {
-      .modal-overlay { padding: 10px; }
+      .modal-overlay { padding: 10px; } /* Less padding on edges */
       .modal-content { max-height: 85vh; width: 100%; }
+      
+      /* Tighten up table for small screens */
       .log-table th, .log-table td { padding: 10px 12px; font-size: 0.8rem; }
       .section-header { padding: 12px 12px 4px; }
       .history-list { padding: 0 12px 12px; }
-      .nl-form { flex-direction: column; }
-      .sub-btn { padding: 12px; width: 100%; }
+      
+      .weather-data-row { flex-direction: column; align-items: flex-start; gap: 2px; }
     }
   `;
 
@@ -540,7 +491,7 @@ export default function GardenMonitor() {
 
       <div className="main-content">
 
-        {/* 1. WEATHER DASHBOARD */}
+        {/* 1. WEATHER DASHBOARD (LIVE) */}
         <div className="weather-card">
           <div className="weather-header">
             <div>
@@ -581,6 +532,7 @@ export default function GardenMonitor() {
             const isLow = moisture < 40;
             const isPickerOpen = activeZoneId === zone.id;
             
+            // Find last watered date
             const zoneEvents = wateringEvents.filter(e => e.zoneId === zone.id);
             const lastWatered = zoneEvents.length > 0 
               ? zoneEvents.sort((a,b) => new Date(b.date) - new Date(a.date))[0].date
@@ -602,6 +554,7 @@ export default function GardenMonitor() {
                     </div>
                   </div>
 
+                  {/* Moisture Bar */}
                   <div className="progress-track">
                     <div 
                       className={`progress-fill ${isLow ? 'fill-low' : 'fill-ok'}`} 
@@ -646,55 +599,14 @@ export default function GardenMonitor() {
             );
           })}
         </div>
-
-        {/* 3. NEWSLETTER SIGNUP */}
-        <div className="newsletter-section">
-          <div className="nl-header">
-            <Mail size={24} color="#3b82f6" />
-            <h3 className="nl-title">Daily Garden Report</h3>
-          </div>
-          <p className="nl-desc">
-            Get a daily email at 7 AM with the current moisture levels and a watering recommendation for your Wicker Park garden.
-          </p>
-          
-          <form className="nl-form" onSubmit={handleSubscribe}>
-            <input 
-              type="email" 
-              className="email-input" 
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <button 
-              type="submit" 
-              className="sub-btn" 
-              disabled={subStatus === 'loading' || subStatus === 'success'}
-            >
-              {subStatus === 'loading' ? 'Joining...' : subStatus === 'success' ? 'Joined!' : 'Subscribe'}
-            </button>
-          </form>
-
-          {subStatus === 'success' && (
-            <div className="sub-msg msg-success">
-              <CheckCircle size={16} />
-              <span>You're on the list! Check your inbox for a confirmation.</span>
-            </div>
-          )}
-          {subStatus === 'error' && (
-            <div className="sub-msg msg-error">
-              <AlertCircle size={16} />
-              <span>Something went wrong. Please try again.</span>
-            </div>
-          )}
-        </div>
-
       </div>
 
-      {/* 4. THE LOG MODAL */}
+      {/* 3. THE LOG MODAL */}
       {showLog && (
         <div className="modal-overlay">
           <div className="modal-content">
+            
+            {/* Modal Header */}
             <div className="modal-header">
               <h2 className="modal-title">
                 <Calendar size={20} color="#3b82f6" />
@@ -705,14 +617,17 @@ export default function GardenMonitor() {
               </button>
             </div>
 
+            {/* Modal Body (Scrollable) */}
             <div className="modal-body">
+              
+              {/* SECTION A: EDITABLE HISTORY */}
               <div className="section-header">Recent Log Entries</div>
               <div className="history-list">
                 {wateringEvents.length === 0 ? (
                   <div className="empty-state">No watering recorded yet.</div>
                 ) : (
                   wateringEvents
-                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .sort((a, b) => new Date(b.date) - new Date(a.date)) // Newest first
                     .map(event => {
                       const zoneName = zones.find(z => z.id === event.zoneId)?.name || 'Unknown Zone';
                       return (
@@ -737,6 +652,7 @@ export default function GardenMonitor() {
                 )}
               </div>
 
+              {/* SECTION B: 7-DAY OVERVIEW (LIVE DATA) */}
               <div className="section-header" style={{borderTop: '1px solid #334155', paddingTop: '16px'}}>
                 7-Day Analysis (In-Ground)
               </div>
@@ -759,11 +675,15 @@ export default function GardenMonitor() {
                         </div>
                       </td>
                       <td>
+                        {/* SEPARATED WEATHER DATA */}
                         <div style={{display:'flex', flexDirection:'column', gap:'2px'}}>
+                          {/* Temp Row */}
                           <div style={{display:'flex', alignItems:'center', gap:'4px', color: '#fbbf24'}}>
                             <Sun size={12} /> 
                             <span style={{color: '#e2e8f0'}}>{Math.round(day.temp)}°</span>
                           </div>
+                          
+                          {/* Rain Row (Only if rain > 0) */}
                           {day.rain > 0 && (
                             <div style={{display:'flex', alignItems:'center', gap:'4px', color: '#60a5fa'}}>
                               <CloudRain size={12} /> 

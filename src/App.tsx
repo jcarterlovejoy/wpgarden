@@ -11,11 +11,10 @@ import {
   History,
   Plus,
   Save,
-  ThermometerSnowflake,
-  Wind
+  ThermometerSnowflake
 } from 'lucide-react';
 
-function GardenMonitor() {
+export default function GardenMonitor() {
   // --- STATE ---
   const [loading, setLoading] = useState(true);
   const [showLog, setShowLog] = useState(false);
@@ -36,10 +35,10 @@ function GardenMonitor() {
   // Zones
   const [zones] = useState([
     { id: 'z1', name: 'In-Ground Garden', type: 'ground' },
-    { id: 'z2', name: 'Urns', type: 'container' } // Renamed here
+    { id: 'z2', name: 'Urns', type: 'container' }
   ]);
 
-  // Watering Events (Mocked initial data, but editable)
+  // Watering Events (Mocked initial data)
   const [wateringEvents, setWateringEvents] = useState([
     { id: 'e1', zoneId: 'z1', date: '2024-02-01' }, 
     { id: 'e2', zoneId: 'z2', date: '2024-02-03' }, 
@@ -68,7 +67,6 @@ function GardenMonitor() {
         });
 
         // 2. Fetch Last 7 Days History (Rain & Temp)
-        // Calculate dates
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(endDate.getDate() - 7);
@@ -101,7 +99,6 @@ function GardenMonitor() {
 
   // --- ALGORITHM ---
 
-  // Helper to interpret WMO weather codes
   const getWeatherDescription = (code) => {
     if (code === 0) return "Clear";
     if (code >= 1 && code <= 3) return "Partly Cloudy";
@@ -113,42 +110,35 @@ function GardenMonitor() {
     return "Unknown";
   };
 
-  // Calculate Moisture based on REAL history
-  // This runs through the last 7 days of weather + logs to determine current status
   const calculateMoistureHistory = (zoneType, zoneId) => {
     if (historyData.length === 0) return [];
 
-    let currentMoisture = 80; // Start assumption 7 days ago
+    let currentMoisture = 80; 
     const dailyStats = [];
 
     historyData.forEach(day => {
       // 1. Evaporation (Loss)
-      // Hotter = more loss. Pots lose faster than ground.
       let evaporation = 0;
       if (day.maxTemp > 80) evaporation = 15;
       else if (day.maxTemp > 60) evaporation = 10;
       else if (day.maxTemp > 40) evaporation = 5;
-      else evaporation = 2; // Very little loss in cold
+      else evaporation = 2;
 
-      if (zoneType === 'container') evaporation *= 1.5; // Pots dry faster
+      if (zoneType === 'container') evaporation *= 1.5;
 
       // 2. Rain (Gain)
-      // Ground captures rain better than pots
-      let rainGain = day.rain * 50; // 1 inch of rain = +50% moisture (roughly)
-      if (zoneType === 'container') rainGain *= 0.8; // Pots might shed some rain or have less surface area
+      let rainGain = day.rain * 50; 
+      if (zoneType === 'container') rainGain *= 0.8;
 
       // 3. User Watering (Gain)
       const watered = wateringEvents.some(e => e.zoneId === zoneId && e.date === day.date);
-      const waterGain = watered ? 100 : 0; // Reset to full if watered
-
-      // Calculate
+      
       if (watered) {
         currentMoisture = 100;
       } else {
         currentMoisture = currentMoisture - evaporation + rainGain;
       }
 
-      // Clamp
       currentMoisture = Math.max(0, Math.min(100, currentMoisture));
 
       dailyStats.push({
@@ -163,17 +153,15 @@ function GardenMonitor() {
     return dailyStats;
   };
 
-  // Get the *current* (most recent) moisture level from the algo
   const getCurrentMoisture = (zone) => {
     const stats = calculateMoistureHistory(zone.type, zone.id);
-    if (stats.length === 0) return 50; // default
+    if (stats.length === 0) return 50;
     return stats[stats.length - 1].moisture;
   };
 
   // --- ACTIONS ---
 
   const initiateWatering = (zoneId) => {
-    // Default to today
     const today = new Date().toISOString().split('T')[0];
     setSelectedDate(today);
     setActiveZoneId(zoneId);
@@ -375,7 +363,7 @@ function GardenMonitor() {
     .cancel-btn:hover { color: white; border-color: white; }
 
 
-    /* Modal / Popup */
+    /* Modal / Popup - FIXED FOR MOBILE */
     .modal-overlay {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.7);
@@ -396,7 +384,7 @@ function GardenMonitor() {
       border: 1px solid #334155;
       display: flex;
       flex-direction: column;
-      max-height: 85vh;
+      max-height: 90vh; /* Prevent it from being taller than screen */
       color: #f1f5f9;
     }
     
@@ -407,12 +395,13 @@ function GardenMonitor() {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0; /* Header stays fixed */
     }
     .modal-title { font-weight: 700; color: #f1f5f9; display: flex; align-items: center; gap: 8px; margin: 0; }
     .close-btn { background: none; border: none; cursor: pointer; color: #94a3b8; padding: 4px; }
     .close-btn:hover { color: white; }
 
-    .modal-body { overflow-y: auto; padding: 0; }
+    .modal-body { overflow-y: auto; padding: 0; flex-grow: 1; }
 
     /* Log Table */
     .section-header { padding: 16px 20px 8px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 700; }
@@ -420,7 +409,7 @@ function GardenMonitor() {
     .log-table th { text-align: left; padding: 12px 20px; background: #0f172a; color: #94a3b8; font-size: 0.75rem; text-transform: uppercase; font-weight: 600; }
     .log-table td { padding: 12px 20px; border-bottom: 1px solid #334155; vertical-align: middle; }
     
-    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-block; white-space: nowrap; }
     .badge-blue { background: #1e3a8a; color: #93c5fd; }
     .badge-gray { background: #334155; color: #cbd5e1; }
     
@@ -454,6 +443,19 @@ function GardenMonitor() {
     .delete-btn:hover { background: #7f1d1d; color: white; }
 
     .empty-state { text-align: center; padding: 20px; color: #64748b; font-size: 0.9rem; font-style: italic; }
+
+    /* --- MOBILE FIXES --- */
+    @media (max-width: 480px) {
+      .modal-overlay { padding: 10px; } /* Less padding on edges */
+      .modal-content { max-height: 85vh; width: 100%; }
+      
+      /* Tighten up table for small screens */
+      .log-table th, .log-table td { padding: 10px 12px; font-size: 0.8rem; }
+      .section-header { padding: 12px 12px 4px; }
+      .history-list { padding: 0 12px 12px; }
+      
+      .weather-data-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+    }
   `;
 
   if (loading) {
@@ -652,17 +654,15 @@ function GardenMonitor() {
 
               {/* SECTION B: 7-DAY OVERVIEW (LIVE DATA) */}
               <div className="section-header" style={{borderTop: '1px solid #334155', paddingTop: '16px'}}>
-                7-Day Analysis (Based on Live Weather)
+                7-Day Analysis (In-Ground)
               </div>
-              <div style={{padding: '0 20px 10px', fontSize: '0.8rem', color: '#64748b'}}>
-                Showing moisture levels for In-Ground Garden based on actual rain & temp.
-              </div>
+              
               <table className="log-table">
                 <thead>
                   <tr>
                     <th>Date</th>
                     <th>Weather</th>
-                    <th>Moisture</th>
+                    <th>Moist%</th>
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -670,14 +670,26 @@ function GardenMonitor() {
                   {calculateMoistureHistory('ground', 'z1').reverse().map((day, idx) => (
                     <tr key={idx}>
                       <td>
-                        <div style={{fontWeight: 600, color: '#f1f5f9'}}>{day.date}</div>
+                        <div style={{fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap'}}>
+                          {new Date(day.date).toLocaleDateString(undefined, {month:'numeric', day:'numeric'})}
+                        </div>
                       </td>
                       <td>
-                        <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
-                          {day.rain > 0.1 ? <CloudRain size={14} color="#60a5fa"/> : <Sun size={14} color="#fbbf24"/>}
-                          <span style={{fontSize:'0.75rem', color:'#94a3b8'}}>
-                            {day.rain > 0 ? `${day.rain}"` : `${Math.round(day.temp)}°`}
-                          </span>
+                        {/* SEPARATED WEATHER DATA */}
+                        <div style={{display:'flex', flexDirection:'column', gap:'2px'}}>
+                          {/* Temp Row */}
+                          <div style={{display:'flex', alignItems:'center', gap:'4px', color: '#fbbf24'}}>
+                            <Sun size={12} /> 
+                            <span style={{color: '#e2e8f0'}}>{Math.round(day.temp)}°</span>
+                          </div>
+                          
+                          {/* Rain Row (Only if rain > 0) */}
+                          {day.rain > 0 && (
+                            <div style={{display:'flex', alignItems:'center', gap:'4px', color: '#60a5fa'}}>
+                              <CloudRain size={12} /> 
+                              <span style={{color: '#93c5fd'}}>{day.rain}"</span>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td>
@@ -713,5 +725,3 @@ function GardenMonitor() {
     </div>
   );
 }
-
-export default GardenMonitor;
